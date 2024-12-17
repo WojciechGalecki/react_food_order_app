@@ -4,16 +4,17 @@ import { OrderContext } from "../store/OrderContext";
 
 export default function CartItem({ item }) {
   const { updateItemQuantity } = useContext(OrderContext);
+
   return (
     <li className="cart-item">
       <p>
         {item.name} - {item.quantity} x ${item.price}
       </p>
-      <div className="cart-item-actions">
+      <p className="cart-item-actions">
         <button onClick={() => updateItemQuantity(item.id, "-")}>-</button>
-        {item.quantity}
+        <span>{item.quantity}</span>
         <button onClick={() => updateItemQuantity(item.id, "+")}>+</button>
-      </div>
+      </p>
     </li>
   );
 }

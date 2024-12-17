@@ -3,6 +3,7 @@ import { createContext, useReducer } from "react";
 const Type = {
   add: "add",
   update: "update",
+  clear: "clear",
 };
 
 export const OrderContext = createContext({
@@ -10,6 +11,7 @@ export const OrderContext = createContext({
   totalItemsPrice: 0,
   addItemToCart: () => {},
   updateItemQuantity: () => {},
+  clearCart: () => {},
 });
 
 function cartReducer(state, action) {
@@ -69,6 +71,13 @@ function cartReducer(state, action) {
     };
   }
 
+  if (action.type === Type.clear) {
+    return {
+      ...state,
+      items: [],
+    };
+  }
+
   return state;
 }
 
@@ -95,11 +104,18 @@ export default function OrderContextProvider({ children }) {
     });
   }
 
+  function handleClearCart() {
+    cartDispatch({
+      type: Type.clear,
+    });
+  }
+
   const ctxValue = {
     items: cartState.items,
     totalItemsPrice,
     addItemToCart: handleAddItemToCart,
     updateItemQuantity: handleUpdateItemQuantity,
+    clearCart: handleClearCart,
   };
 
   return (

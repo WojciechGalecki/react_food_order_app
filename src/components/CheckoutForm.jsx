@@ -1,143 +1,118 @@
-import { useContext } from "react";
-import { useActionState } from "react";
+import { useContext, useActionState } from "react";
 
-import Input from "./Input";
+import Input from "./UI/Input";
 import { OrderContext } from "../store/OrderContext";
-import { saveData } from "../http";
-import { isNotEmpty, isEmail } from "../utils/validation";
+import Modal from "./UI/Modal";
+import Button from "./UI/Button";
+import { UserProgressContext } from "../store/UserProgressContext";
+import useHttp from "../hooks/useHttp";
+import ErrorPage from "./ErrorPage";
 
 const mainUrl = "http://localhost:3000";
+const requestConfig = {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+};
 
-export default function CheckoutForm({ onClose }) {
-  const { totalItemsPrice, items } = useContext(OrderContext);
+export default function CheckoutForm() {
+  const { totalItemsPrice, items, clearCart } = useContext(OrderContext);
+  const { progress, resetProgress } = useContext(UserProgressContext);
+  const {
+    data,
+    error,
+    sendRequest,
+    clearData,
+  } = useHttp(`${mainUrl}/orders`, requestConfig);
 
-  async function submitAction(s, formData) {
-    const fullName = formData.get("fullName");
-    const email = formData.get("email");
-    const street = formData.get("street");
-    const postalCode = formData.get("postalCode");
-    const city = formData.get("city");
+  async function submitAction(_prevState, fd) {
+    const customerData = Object.fromEntries(fd.entries());
 
-    let errors = [];
-
-    if (items.length === 0) {
-      errors.push("No order items!");
-    }
-
-    if (!isNotEmpty(fullName)) {
-      errors.push("Please provide a full name!");
-    }
-
-    if (!isEmail(email)) {
-      errors.push("Invalid email address!");
-    }
-
-    if (!isNotEmpty(street)) {
-      errors.push("Please provide a street!");
-    }
-
-    if (!isNotEmpty(postalCode)) {
-      errors.push("Please provide a postal code!");
-    }
-
-    if (!isNotEmpty(city)) {
-      errors.push("Please provide a city!");
-    }
-
-    if (errors.length > 0) {
-      return {
-        errors,
-        values: {
-          fullName,
-          email,
-          street,
-          postalCode,
-          city,
+    await sendRequest(
+      JSON.stringify({
+        order: {
+          items,
+          customer: customerData,
         },
-      };
-    }
-
-    try {
-      await saveData(
-        `${mainUrl}/orders`,
-        "POST",
-        JSON.stringify({
-          order: {
-            items,
-            customer: {
-              email,
-              name: fullName,
-              street,
-              city,
-              "postal-code": postalCode,
-            },
-          },
-        })
-      );
-    } catch (err) {
-      errors.push(err.message);
-      return { errors };
-    }
-
-    return { errors: null };
+      })
+    );
   }
 
-  const [orderState, orderAction, pending] = useActionState(submitAction, {
-    errors: null,
-  });
+  const [_formState, formAction, isSending] = useActionState(submitAction, null);
+
+  function handleFinish() {
+    resetProgress();
+    clearCart();
+    clearData();
+  }
+
+  let actions = (
+    <>
+      <Button type="button" textOnly onClick={resetProgress}>
+        Close
+      </Button>
+      <Button>Submit Order</Button>
+    </>
+  );
+
+  if (isSending) {
+    actions = <span>Sending order data...</span>;
+  }
+
+  if (data && !error) {
+    return (
+      <Modal open={progress === "checkout"} onClose={handleFinish}>
+        <h2>Success!</h2>
+        <p>Your order was submitted successfully.</p>
+        <p className="modal-actions">
+          <Button onClick={handleFinish}>Ok</Button>
+        </p>
+      </Modal>
+    );
+  }
 
   return (
-    <div className="control">
-      <h2>Checkout</h2>
-      <p>Total Amount: ${totalItemsPrice}</p>
-      <form action={orderAction}>
+    <Modal open={progress === "checkout"} onClose={resetProgress}>
+      <form action={formAction}>
+        <h2>Checkout</h2>
+        <p>Total Amount: ${totalItemsPrice}</p>
         <Input
-          key="fullName"
-          id="fullName"
+          id="name"
           label="Full Name"
-          defaultValue={orderState.values?.fullName}
+          type="text"
+          required
         />
         <Input
-          key="email"
           id="email"
           label="E-Mail Address"
           type="email"
-          defaultValue={orderState.values?.email}
+          required
         />
         <Input
-          key="street"
           id="street"
           label="Street"
-          defaultValue={orderState.values?.street}
+          required
         />
         <div className="control-row">
           <Input
-            key="postalCode"
-            id="postalCode"
+            id="postal-code"
             label="Postal Code"
-            defaultValue={orderState.values?.postalCode}
+            type="text"
+            required
           />
           <Input
-            key="city"
             id="city"
             label="City"
-            defaultValue={orderState.values?.city}
+            type="text"
+            required
           />
         </div>
 
-        {orderState.errors && (
-          <ul>
-            {orderState.errors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
-        )}
+        {error && <ErrorPage title="Failed to submit order" message={error} />}
 
-        <button onClick={onClose}>Close</button>
-        <button className="button" type="submit" disabled={pending}>
-          Submit Order
-        </button>
+        <p className="modal-actions">{actions}</p>
       </form>
-    </div>
+    </Modal>
   );
 }

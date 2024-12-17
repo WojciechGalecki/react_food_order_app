@@ -1,46 +1,27 @@
-import { useEffect, useState } from "react";
-
-import { fetchData } from "../http";
-import ErrorPage from "./ErrorPage";
 import MealItem from "./MealItem";
+import useHttp from "../hooks/useHttp";
+import ErrorPage from "./ErrorPage";
 
 const mainUrl = "http://localhost:3000";
+const requestConfig = {};
 
 export default function Meals() {
-  const [isFetching, setIsFetching] = useState();
-  const [error, setError] = useState();
-  const [meals, setMeals] = useState([]);
-
-  useEffect(() => {
-    async function loadMeals() {
-      setIsFetching(true);
-
-      try {
-        const data = await fetchData(`${mainUrl}/meals`);
-        setMeals(data);
-      } catch (err) {
-        setError({ message: err.message });
-      }
-
-      setIsFetching(false);
-    }
-
-    loadMeals();
-  }, []);
+  const { data, isLoading, error } = useHttp(
+    `${mainUrl}/meals`,
+    requestConfig,
+    []
+  );
 
   if (error) {
-    return <ErrorPage message={error.message} />;
+    return <ErrorPage title="Failed to failed meals" message={error.message} />;
   }
 
   return (
     <div>
-      {isFetching && <p>Loading meals...</p>}
-      {!isFetching && meals.length === 0 && (
-        <p>Sorry... Couldn't load meals.</p>
-      )}
-      {!isFetching && meals.length > 0 && (
+      {isLoading && <p className="center">Loading meals...</p>}
+      {!isLoading && data.length > 0 && (
         <ul id="meals">
-          {meals.map((meal) => (
+          {data.map((meal) => (
             <MealItem key={meal.id} meal={meal} mainUrl={mainUrl} />
           ))}
         </ul>
